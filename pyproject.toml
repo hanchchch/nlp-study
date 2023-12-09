@@ -1,0 +1,21 @@
+[tool.poetry]
+name = "nlp-study"
+version = "0.1.0"
+description = ""
+authors = ["hanchchch <cndghks15@gmail.com>"]
+readme = "README.md"
+packages = [{include = "nlp_study"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+torch = "^2.1.1"
+torchtext = "^0.16.1"
+portalocker = "^2.8.2"
+
+
+[tool.poetry.group.dev.dependencies]
+black = "^23.11.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
