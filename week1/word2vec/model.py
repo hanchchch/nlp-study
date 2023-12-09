@@ -16,13 +16,13 @@ class Word2Vec(torch.nn.Module):
         self.projection_to_output = torch.nn.Embedding(embedding_dim, len(word_map))
         self.softmax = torch.nn.Softmax(dim=1)
 
-    def one_hot(self, word: str):
+    def one_hot(self, word: str) -> torch.Tensor:
         index = self.word_map[word]
         one_hot = torch.zeros(1, len(self.word_map))
         one_hot[0][index] = 1
         return one_hot
 
-    def get_context_words(self, words: list[str], word_index: int):
+    def get_context_words(self, words: list[str], word_index: int) -> list[str]:
         return [
             words[i]
             for i in range(
@@ -32,7 +32,7 @@ class Word2Vec(torch.nn.Module):
             if i != word_index
         ]
 
-    def forward(self, words: list[str], word_index: int):
+    def forward(self, words: list[str], word_index: int) -> torch.Tensor:
         context_words = self.get_context_words(words, word_index)
 
         # input -> projection
