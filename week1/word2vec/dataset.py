@@ -3,7 +3,7 @@ import os
 
 import torch
 from torch.utils.data import IterableDataset
-from torchtext.datasets import WikiText103
+from torchtext.datasets import WikiText2
 from torchtext.vocab import build_vocab_from_iterator
 
 logger = logging.getLogger(__name__)
@@ -26,34 +26,33 @@ class ContextWordsDataset(IterableDataset):
         self.window_size = window_size
         self.vocab_cache_path = vocab_cache_path
 
-        train, valid, test = WikiText103(root=root, split=("train", "valid", "test"))
+        train, valid, test = WikiText2(root=root, split=("train", "valid", "test"))
         self.train = train
         self.valid = valid
         self.test = test
 
         self.vocab = None
-        self.vocab = self.get_vocab()
-
-    def __iter__(self):
-        for sentence in self.get_sentences():
-            words = self.tokenizer(sentence)
-            if len(words) == 0:
-                continue
-
-            for word_index, word in enumerate(words):
-                context_words = self.get_context_words(words, word_index)
-                if len(context_words) != 4:
-                    continue
-
-                yield (
-                    torch.cat([self.one_hot_encode(w) for w in context_words]),
-                    self.one_hot_encode(word),
-                )
+        self.vocab = self.create_vocab()
 
     def __len__(self):
         return self.TOTAL_LENGTH
+    
+    def __iter__(self):
+        for sentence in self.sentences():
+            tokens = self.vocab(self.tokenizer(sentence))
+            if len(tokens) < self.window_size * 2 + 1:
+                continue
 
-    def get_sentences(self):
+            for idx in range(len(tokens) - self.window_size * 2):
+                token_id_sequence = tokens[idx : (idx + self.window_size * 2 + 1)]
+                output = token_id_sequence.pop(self.window_size)
+                inputs = token_id_sequence
+                yield (
+                    torch.tensor(inputs, dtype=torch.long),
+                    torch.tensor(output, dtype=torch.long),
+                )
+
+    def sentences(self):
         if self.split == "train":
             return self.train
         elif self.split == "valid":
@@ -67,7 +66,7 @@ class ContextWordsDataset(IterableDataset):
         for sentence in sentences:
             yield self.tokenizer(sentence)
 
-    def get_vocab(self):
+    def create_vocab(self):
         if self.vocab:
             return self.vocab
 
@@ -77,10 +76,9 @@ class ContextWordsDataset(IterableDataset):
 
         logger.info("building vocab")
         vocab = build_vocab_from_iterator(
-            self.yield_tokens(self.get_sentences()),
+            self.yield_tokens(self.sentences()),
             specials=["<unk>"],
-            min_freq=2,
-            max_tokens=30000,
+            min_freq=50,
         )
         vocab.set_default_index(vocab["<unk>"])
 
@@ -89,18 +87,5 @@ class ContextWordsDataset(IterableDataset):
 
         return vocab
 
-    def get_vocab_count(self) -> int:
-        return len(self.get_vocab())
-
-    def get_context_words(self, words: list[str], word_index: int) -> list[str]:
-        return [
-            words[i]
-            for i in range(
-                max(word_index - self.window_size, 0),
-                min(word_index + self.window_size + 1, len(words)),
-            )
-            if i != word_index
-        ]
-
-    def one_hot_encode(self, word: str) -> torch.Tensor:
-        return torch.Tensor([self.vocab[word]]).long()
+    def get_vocab_count(self):
+        return len(self.vocab)

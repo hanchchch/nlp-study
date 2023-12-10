@@ -30,18 +30,21 @@ dataset = ContextWordsDataset(
     window_size=window_size,
     vocab_cache_path=vocab_cache_path,
 )
+logger.info(f"dataset loaded, {dataset.get_vocab_count()} vocabs")
 train_dataset_total = len(dataset)
 
 device = torch.device("cuda" if use_gpu else "cpu")
 model = Word2Vec(word_count=dataset.get_vocab_count()).to(device)
 
 criterion = torch.nn.CrossEntropyLoss()
-optimizer = torch.optim.SGD(model.parameters(), lr=0.025)
+optimizer = torch.optim.AdamW(model.parameters(), lr=0.0001)
 
-batch_size = 100
+batch_size = 512
+shuffle = True
+
 dataloader = DataLoader(dataset, batch_size=batch_size)
 
-EPOCH = 3
+EPOCH = 10
 CHECKPOINT_PATH = "model.pt"
 
 for epoch in range(EPOCH):

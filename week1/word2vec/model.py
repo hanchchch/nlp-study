@@ -14,13 +14,10 @@ class Word2Vec(torch.nn.Module):
         self.projection_to_output = torch.nn.Linear(
             embedding_dim, word_count, dtype=torch.float32
         )
-        self.softmax = torch.nn.Softmax(dim=1)
+        # self.softmax = torch.nn.Softmax(dim=1)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        # input -> projection
-        projection = self.input_to_projection(x)
-        projection = torch.mean(projection, dim=1)
-
-        # projection -> output
+        projection = self.input_to_projection(x).mean(dim=1)
         output = self.projection_to_output(projection)
-        return self.softmax(output)
+        return output
+        # return self.softmax(output)
