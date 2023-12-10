@@ -28,9 +28,13 @@ class Inference:
         similarity = torch.cosine_similarity(
             query, self.model.input_to_projection.weight, dim=1
         )
-        return torch.topk(similarity, top_k)
+        top_k_similarities, top_k_indices = torch.topk(similarity, top_k)
+        return [
+            (self.token_id_to_word(index), similarity.item())
+            for similarity, index in zip(top_k_similarities, top_k_indices)
+        ]
 
-    def embed(self, sentence: str):
+    def embed(self, sentence: str) -> torch.Tensor:
         token_ids = self.sentence_to_token_ids(sentence)
         return self.model.input_to_projection(
             torch.tensor(token_ids, dtype=torch.long).to(self.device)
@@ -41,9 +45,4 @@ class Inference:
 
         with torch.no_grad():
             output = self.embed(sentence)
-            top_k_similarities, top_k_indices = self.search(output, top_k)
-
-            return [
-                (self.token_id_to_word(index), similarity.item())
-                for similarity, index in zip(top_k_similarities, top_k_indices)
-            ]
+            return self.search(output, top_k)
