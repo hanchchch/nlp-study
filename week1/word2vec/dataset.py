@@ -8,22 +8,28 @@ from torchtext.vocab import build_vocab_from_iterator
 
 logger = logging.getLogger(__name__)
 
+
 class ContextWordsDataset(IterableDataset):
     TOTAL_SENTENCES = 1_801_350
 
-    def __init__(self, root: str, split: str, tokenizer: callable, window_size: int = 2, vocab_cache_path: str = None):
+    def __init__(
+        self,
+        root: str,
+        split: str,
+        tokenizer: callable,
+        window_size: int = 2,
+        vocab_cache_path: str = None,
+    ):
         self.split = split
         self.tokenizer = tokenizer
         self.window_size = window_size
         self.vocab_cache_path = vocab_cache_path
 
-        train, valid, test = WikiText103(
-            root=root, split=("train", "valid", "test")
-        )
+        train, valid, test = WikiText103(root=root, split=("train", "valid", "test"))
         self.train = train
         self.valid = valid
         self.test = test
-        
+
         self.vocab = None
         self.vocab = self.get_vocab()
 
@@ -38,7 +44,10 @@ class ContextWordsDataset(IterableDataset):
                 if len(context_words) != 4:
                     continue
 
-                yield (torch.cat([self.one_hot_encode(w) for w in context_words]), self.one_hot_encode(word))
+                yield (
+                    torch.cat([self.one_hot_encode(w) for w in context_words]),
+                    self.one_hot_encode(word),
+                )
 
     def get_sentences(self):
         if self.split == "train":
@@ -49,7 +58,7 @@ class ContextWordsDataset(IterableDataset):
             return self.test
         else:
             raise KeyError(f"wrong split: {self.split}")
-    
+
     def yield_tokens(self, sentences: list[str]):
         for sentence in sentences:
             yield self.tokenizer(sentence)
@@ -57,7 +66,7 @@ class ContextWordsDataset(IterableDataset):
     def get_vocab(self):
         if self.vocab:
             return self.vocab
-        
+
         if self.vocab_cache_path and os.path.exists(self.vocab_cache_path):
             logger.info(f"loading vocab from {self.vocab_cache_path}")
             return torch.load(self.vocab_cache_path)
@@ -70,12 +79,12 @@ class ContextWordsDataset(IterableDataset):
             max_tokens=30000,
         )
         vocab.set_default_index(vocab["<unk>"])
-        
+
         if self.vocab_cache_path:
             torch.save(self.vocab, self.vocab_cache_path)
 
         return vocab
-    
+
     def get_vocab_count(self) -> int:
         return len(self.get_vocab())
 
@@ -94,4 +103,3 @@ class ContextWordsDataset(IterableDataset):
         one_hot = torch.zeros(1, len(self.vocab), dtype=torch.int)
         one_hot[0][index] = 1
         return torch.Tensor([index]).long()
-
