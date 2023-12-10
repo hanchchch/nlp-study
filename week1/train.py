@@ -1,59 +1,53 @@
-import math
+import logging
 import os
-import time
 
 import torch
 from torch.utils.data import DataLoader
 from torchtext.data.utils import get_tokenizer
-from torchtext.datasets import WikiText103
 from tqdm import tqdm
-from word2vec import Preprocessor, Word2Vec, get_word_map
+from word2vec import ContextWordsDataset, Word2Vec
+
+logging.basicConfig(level=logging.INFO)
 
 os.chdir(os.path.dirname(__file__))
 
-train_dataset, valid_dataset, test_dataset = WikiText103(
-    root=".data", split=("train", "valid", "test")
-)
-train_dataset_total = 1_801_350
-
 tokenizer_name = "basic_english"
-word_map_cache = f"word_map_{tokenizer_name}.json"
-
+vocab_cache_path = f"vocab_{tokenizer_name}.pth"
 tokenizer = get_tokenizer(tokenizer_name)
-word_map = get_word_map(train_dataset, tokenizer=tokenizer, total=train_dataset_total, cache_path=word_map_cache)
 
 window_size = 2
+use_gpu = False
 
-preprocessor = Preprocessor(tokenizer=tokenizer, window_size=window_size)
-model = Word2Vec(word_map)
+
+dataset = ContextWordsDataset(root=".data", split="train", tokenizer=tokenizer, window_size=window_size, vocab_cache_path=vocab_cache_path)
+model = Word2Vec(word_count=dataset.get_vocab_count())
 
 
 criterion = torch.nn.CrossEntropyLoss()
 optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)
 
-batch_size = math.ceil(train_dataset_total/100)
-dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-
+batch_size = 100 #  math.ceil(train_dataset_total/10000)
+dataloader = DataLoader(dataset, batch_size=batch_size)
 
 EPOCH = 1
 CHECKPOINT_PATH = "model.pt"
 
 for epoch in range(EPOCH):
-    for batchdata in dataloader:
-        optimizer.zero_grad()
-        loss = 0
-        
-        for (context_words, word) in tqdm(preprocessor.preprocess(batchdata), total=batch_size):
-            start = time.time()
-            output = model(context_words)
-            label = model.one_hot(word)
-            loss += criterion(output, label)
-            end = time.time()
+    with tqdm(dataloader, unit="batch") as tepoch:
+        for (x, y_hat) in tepoch:
+            tepoch.set_description(f"Epoch {epoch+1}")
 
-        loss.backward()
-        optimizer.step()
+            optimizer.zero_grad()
 
-        print(f"{loss=}")
+            output = model(x)
+            loss = criterion(output, y_hat.view(-1))  # Reshape y_hat to be 1-dimensional
+
+            loss.backward()
+            optimizer.step()
+
+            tepoch.set_postfix(loss=loss.item())
+
+
 
 print("done training, saving model")
 

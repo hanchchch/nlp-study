@@ -1,9 +1,8 @@
-from .model import Word2Vec
-from .preprocessor import Preprocessor
-from .words import get_word_map
+from .dataset import ContextWordsDataset
+from .model import Word2Vec, Word2VecParallel
 
 __all__ = [
-    "get_word_map",
-    "Preprocessor",
+    "ContextWordsDataset",
     "Word2Vec",
+    "Word2VecParallel"
 ]
