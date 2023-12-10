@@ -42,8 +42,9 @@ class Calc(ast.NodeVisitor):
 
 
 if __name__ == "__main__":
-    logger.info("Enter words and operators to calculate")
-    vector = Calc.evaluate(input())
-    results = inference.search(vector)
-    for word, score in results:
-        print(f"{score:.3f}: {word}")
+    while True:
+        logger.info("----------\nEnter words and operators to calculate")
+        vector = Calc.evaluate(input())
+        results = inference.search(vector)
+        for word, score in results:
+            print(f"{score:.3f}: {word}")
