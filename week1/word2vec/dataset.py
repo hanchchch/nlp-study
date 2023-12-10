@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 
 class ContextWordsDataset(IterableDataset):
     TOTAL_SENTENCES = 1_801_350
+    TOTAL_LENGTH = 96_928_391
 
     def __init__(
         self,
@@ -49,6 +50,9 @@ class ContextWordsDataset(IterableDataset):
                     self.one_hot_encode(word),
                 )
 
+    def __len__(self):
+        return self.TOTAL_LENGTH
+
     def get_sentences(self):
         if self.split == "train":
             return self.train
@@ -81,7 +85,7 @@ class ContextWordsDataset(IterableDataset):
         vocab.set_default_index(vocab["<unk>"])
 
         if self.vocab_cache_path:
-            torch.save(self.vocab, self.vocab_cache_path)
+            torch.save(vocab, self.vocab_cache_path)
 
         return vocab
 
@@ -99,7 +103,4 @@ class ContextWordsDataset(IterableDataset):
         ]
 
     def one_hot_encode(self, word: str) -> torch.Tensor:
-        index = self.vocab[word]
-        one_hot = torch.zeros(1, len(self.vocab), dtype=torch.int)
-        one_hot[0][index] = 1
-        return torch.Tensor([index]).long()
+        return torch.Tensor([self.vocab[word]]).long()
