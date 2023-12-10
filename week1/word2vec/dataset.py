@@ -3,7 +3,7 @@ import os
 
 import torch
 from torch.utils.data import IterableDataset
-from torchtext.datasets import WikiText2
+from torchtext.datasets import WikiText103
 from torchtext.vocab import build_vocab_from_iterator
 
 logger = logging.getLogger(__name__)
@@ -26,7 +26,7 @@ class ContextWordsDataset(IterableDataset):
         self.window_size = window_size
         self.vocab_cache_path = vocab_cache_path
 
-        train, valid, test = WikiText2(root=root, split=("train", "valid", "test"))
+        train, valid, test = WikiText103(root=root, split=("train", "valid", "test"))
         self.train = train
         self.valid = valid
         self.test = test
@@ -36,7 +36,7 @@ class ContextWordsDataset(IterableDataset):
 
     def __len__(self):
         return self.TOTAL_LENGTH
-    
+
     def __iter__(self):
         for sentence in self.sentences():
             tokens = self.sentence_to_token_ids(sentence)
@@ -52,10 +52,10 @@ class ContextWordsDataset(IterableDataset):
                     torch.tensor(output, dtype=torch.long),
                 )
 
-    def sentence_to_token_ids(self, sentence: str):
+    def sentence_to_token_ids(self, sentence: str) -> list[int]:
         return self.vocab(self.tokenizer(sentence))
-    
-    def token_id_to_word(self, token_id: int):
+
+    def token_id_to_word(self, token_id: int) -> str:
         return self.vocab.get_itos()[token_id]
 
     def sentences(self):
