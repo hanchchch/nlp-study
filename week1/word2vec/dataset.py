@@ -39,7 +39,7 @@ class ContextWordsDataset(IterableDataset):
     
     def __iter__(self):
         for sentence in self.sentences():
-            tokens = self.vocab(self.tokenizer(sentence))
+            tokens = self.sentence_to_token_ids(sentence)
             if len(tokens) < self.window_size * 2 + 1:
                 continue
 
@@ -51,6 +51,12 @@ class ContextWordsDataset(IterableDataset):
                     torch.tensor(inputs, dtype=torch.long),
                     torch.tensor(output, dtype=torch.long),
                 )
+
+    def sentence_to_token_ids(self, sentence: str):
+        return self.vocab(self.tokenizer(sentence))
+    
+    def token_id_to_word(self, token_id: int):
+        return self.vocab.get_itos()[token_id]
 
     def sentences(self):
         if self.split == "train":

@@ -47,30 +47,54 @@ dataloader = DataLoader(dataset, batch_size=batch_size)
 EPOCH = 10
 CHECKPOINT_PATH = "model.pt"
 
-for epoch in range(EPOCH):
-    with tqdm(dataloader, unit="batch", total=math.ceil(train_dataset_total / batch_size)) as tepoch:
-        for x, y_hat in tepoch:
-            tepoch.set_description(f"Epoch {epoch+1}")
+if os.path.exists(CHECKPOINT_PATH):
+    checkpoint = torch.load(CHECKPOINT_PATH)
+    model.load_state_dict(checkpoint["model_state_dict"])
+    prev_epoch = checkpoint["epoch"]
 
-            x = x.to(device)
-            y_hat = y_hat.to(device)
+def train():
+    for epoch in range(EPOCH):
+        with tqdm(dataloader, unit="batch", total=math.ceil(train_dataset_total / batch_size)) as tepoch:
+            for x, y_hat in tepoch:
+                tepoch.set_description(f"Epoch {epoch+1}")
 
-            optimizer.zero_grad()
+                x = x.to(device)
+                y_hat = y_hat.to(device)
 
-            output = model(x)
-            loss = criterion(output, y_hat.view(-1))  # Reshape y_hat to be 1-dimensional
+                optimizer.zero_grad()
 
-            loss.backward()
-            optimizer.step()
+                output = model(x)
+                loss = criterion(output, y_hat.view(-1))  # Reshape y_hat to be 1-dimensional
+
+                loss.backward()
+                optimizer.step()
+                
+                tepoch.set_postfix(loss=f"{loss.item():.3f}")
+
+        torch.save(
+            {
+                "epoch": prev_epoch + epoch,
+                "model_state_dict": model.state_dict(),
+                "optimizer_state_dict": optimizer.state_dict(),
+                "loss": loss,
+            },
+            CHECKPOINT_PATH,
+        )
+
+def infer(sentence: str, top_k: int = 10):
+    model.eval()
+
+    with torch.no_grad():
+        tokens = dataset.sentence_to_token_ids(sentence)
+
+        output = model.input_to_projection(torch.tensor(tokens, dtype=torch.long).to(device))
+        # cosine similarity
+        similarity = torch.cosine_similarity(output, model.input_to_projection.weight, dim=1)
+        top_k_similarities, top_k_indices = torch.topk(similarity, top_k)
+
+        return [(dataset.token_id_to_word(index), similarity.item()) for similarity, index in zip(top_k_similarities, top_k_indices)]
             
-            tepoch.set_postfix(loss=f"{loss.item():.3f}")
+    
 
-    torch.save(
-        {
-            "epoch": EPOCH,
-            "model_state_dict": model.state_dict(),
-            "optimizer_state_dict": optimizer.state_dict(),
-            "loss": loss,
-        },
-        CHECKPOINT_PATH,
-    )
+if __name__ == "__main__":
+    train()
