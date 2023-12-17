@@ -20,7 +20,6 @@ class Trainer:
         testset=None,
         trainset_total=None,
         checkpoint_path="model.pt",
-        device=torch.device("cpu"),
         criterion=None,
         optimizer=None,
         batch_size=512,
@@ -35,7 +34,6 @@ class Trainer:
         self.testset = testset
         self.model = model
         self.shuffle = True
-        self.device = device
         self.criterion = criterion
         self.optimizer = optimizer
         self.batch_size = batch_size
@@ -68,9 +66,6 @@ class Trainer:
                 for x, y in tepoch:
                     tepoch.set_description(f"Epoch {epoch+1}")
 
-                    x = x.to(self.device)
-                    y = y.to(self.device)
-
                     self.optimizer.zero_grad()
                     loss = self.get_loss(x, y)
 
@@ -101,9 +96,6 @@ class Trainer:
             ) as tepoch:
                 for x, y in tepoch:
                     tepoch.set_description(f"Test")
-
-                    x = x.to(self.device)
-                    y = y.to(self.device)
 
                     loss = self.get_loss(x, y)
 

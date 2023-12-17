@@ -39,7 +39,9 @@ if __name__ == "__main__":
         args.gpu = False
 
     device = torch.device("cuda" if args.gpu else "cpu")
+    torch.set_default_device(device)
     logger.info(f"device: {device}")
+
     trainset = AGNewsDataset(root=".data", split="train")
     testset = AGNewsDataset(root=".data", split="test")
     vocab = Vocab(
@@ -101,7 +103,6 @@ if __name__ == "__main__":
         inference = Inference(
             model,
             vocab,
-            device=device,
             checkpoint_path=checkpoint_path,
         )
         if not inference.checkpoint_loaded:

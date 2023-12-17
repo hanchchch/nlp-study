@@ -14,10 +14,8 @@ class Inference:
         model: callable,
         vocab: Vocab,
         checkpoint_path="model.pt",
-        device=torch.device("cpu"),
     ):
         self.model = model
-        self.device = device
         self.vocab = vocab
         self.checkpoint = Checkpoint(self.model, checkpoint_path)
         self.prev_epoch, self.checkpoint_loaded = self.checkpoint.load()
@@ -35,7 +33,7 @@ class Inference:
     def embed(self, sentence: str) -> torch.Tensor:
         token_ids = self.vocab(sentence)
         return self.model.input_to_projection(
-            torch.tensor(token_ids, dtype=torch.long).to(self.device)
+            torch.tensor(token_ids, dtype=torch.long)
         )
 
     def infer(self, sentence: str, top_k: int = 10):
