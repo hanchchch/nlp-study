@@ -20,3 +20,9 @@ class RNNTrainer(Trainer):
         x = pad_sequence(x, batch_first=True)
         y = torch.stack(y)
         return x, y
+
+    def on_epoch_done(self, epoch: int, loss: float):
+        super().on_epoch_done(epoch, loss)
+        with open("week2/loss.txt", "a") as f:
+            test_loss = self.test()
+            f.write(f"{epoch},{test_loss}\n")

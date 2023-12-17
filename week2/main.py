@@ -24,7 +24,8 @@ tokenizer = get_tokenizer(tokenizer_name)
 checkpoint_path = "week2/model.pt"
 
 hidden_size = 128
-learning_rate = 0.001
+learning_rate = 0.0025
+epochs = 100
 
 
 if __name__ == "__main__":
@@ -64,7 +65,8 @@ if __name__ == "__main__":
         criterion=torch.nn.CrossEntropyLoss(),
         optimizer=torch.optim.AdamW(model.parameters(), lr=learning_rate),
         checkpoint_path=checkpoint_path,
-        batch_size=128,
+        batch_size=64,
+        epoch=epochs,
     )
 
     if args.mode == "train":

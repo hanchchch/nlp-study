@@ -47,13 +47,16 @@ class Trainer:
     def get_loss(self, x: torch.Tensor, y: torch.Tensor):
         raise NotImplementedError()
 
+    def on_epoch_done(self, epoch: int, loss: float):
+        self.checkpoint.save(epoch, loss)
+
     def train(self):
         dataloader = DataLoader(
             self.trainset,
             batch_size=self.batch_size,
             collate_fn=self.collate_fn,
         )
-        for epoch in range(self.epoch):
+        for epoch in range(self.prev_epoch, self.epoch):
             loss_total = 0
             i = 0
 
@@ -79,7 +82,7 @@ class Trainer:
 
                     tepoch.set_postfix(loss=f"{loss_total / i:.3f}")
 
-            self.checkpoint.save(epoch + 1, loss_total / i)
+            self.on_epoch_done(self.prev_epoch + epoch + 1, loss_total / i)
 
     def test(self):
         dataloader = DataLoader(
