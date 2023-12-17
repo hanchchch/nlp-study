@@ -52,6 +52,9 @@ class Trainer:
             collate_fn=self.collate_fn,
         )
         for epoch in range(self.epoch):
+            loss_total = 0
+            i = 0
+
             with tqdm(
                 dataloader,
                 unit="batch",
@@ -69,6 +72,9 @@ class Trainer:
                     loss.backward()
                     self.optimizer.step()
 
-                    tepoch.set_postfix(loss=f"{loss.item():.3f}")
+                    loss_total += loss.item()
+                    i += 1
 
-            self.checkpoint.save(epoch + 1, loss.item())
+                    tepoch.set_postfix(loss=f"{loss_total / i:.3f}")
+
+            self.checkpoint.save(epoch + 1, loss_total / i)
