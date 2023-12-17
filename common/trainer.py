@@ -90,22 +90,23 @@ class Trainer:
         loss_total = 0
         i = 0
 
-        with tqdm(
-            dataloader,
-            unit="batch",
-            total=math.ceil(len(self.testset) / self.batch_size),
-        ) as tepoch:
-            for x, y in tepoch:
-                tepoch.set_description(f"Test")
+        with torch.no_grad():
+            with tqdm(
+                dataloader,
+                unit="batch",
+                total=math.ceil(len(self.testset) / self.batch_size),
+            ) as tepoch:
+                for x, y in tepoch:
+                    tepoch.set_description(f"Test")
 
-                x = x.to(self.device)
-                y = y.to(self.device)
+                    x = x.to(self.device)
+                    y = y.to(self.device)
 
-                loss = self.get_loss(x, y)
+                    loss = self.get_loss(x, y)
 
-                loss_total += loss.item()
-                i += 1
+                    loss_total += loss.item()
+                    i += 1
 
-                tepoch.set_postfix(loss=f"{loss_total / i:.3f}")
+                    tepoch.set_postfix(loss=f"{loss_total / i:.3f}")
 
         return loss_total / i
