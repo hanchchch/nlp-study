@@ -82,7 +82,7 @@ class Trainer:
 
                     tepoch.set_postfix(loss=f"{loss_total / i:.3f}")
 
-            self.on_epoch_done(self.prev_epoch + epoch + 1, loss_total / i)
+            self.on_epoch_done(epoch + 1, loss_total / i)
 
     def test(self):
         dataloader = DataLoader(
