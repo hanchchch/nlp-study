@@ -10,7 +10,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from common.vocab import Vocab
 from week2.core.dataset import AGNewsDataset
-from week2.core.model import RNN
+from week2.core.model import LSTM, RNN
 from week2.inference import Inference
 from week2.trainer import RNNTrainer
 
@@ -32,6 +32,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("mode", choices=["train", "infer", "test"])
     parser.add_argument("-s", "--sentence", type=str, default="")
+    parser.add_argument("-m", "--model", choices=["rnn", "lstm"], default="rnn")
     parser.add_argument("-g", "--gpu", type=bool, default=torch.cuda.is_available())
     args = parser.parse_args()
 
@@ -52,11 +53,20 @@ if __name__ == "__main__":
     testset.set_vocab(vocab)
     logger.info(f"dataset loaded, {vocab.vocab_count()} vocabs")
 
-    model = RNN(
-        input_size=vocab.vocab_count(),
-        hidden_size=hidden_size,
-        output_size=len(trainset.LABELS),
-    )
+    if args.model == "lstm":
+        model = LSTM(
+            input_size=vocab.vocab_count(),
+            hidden_size=hidden_size,
+            output_size=len(trainset.LABELS),
+        )
+    elif args.model == "rnn":
+        model = RNN(
+            input_size=vocab.vocab_count(),
+            hidden_size=hidden_size,
+            output_size=len(trainset.LABELS),
+        )
+    else:
+        raise ValueError("invalid model")
 
     trainer = RNNTrainer(
         trainset=trainset,
@@ -72,7 +82,7 @@ if __name__ == "__main__":
     if args.mode == "train":
         if trainer.checkpoint_loaded:
             logger.info(f"checkpoint loaded, epoch: {trainer.prev_epoch}")
-        
+
         trainer.train()
 
     elif args.mode == "test":
