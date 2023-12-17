@@ -2,6 +2,8 @@ import torch
 
 
 class RNN(torch.nn.Module):
+    name = "rnn"
+
     def __init__(
         self,
         input_size: int,
@@ -28,6 +30,8 @@ class RNN(torch.nn.Module):
 
 
 class LSTM(torch.nn.Module):
+    name = "lstm"
+
     # without torch.nn.LSTM
     def __init__(
         self,

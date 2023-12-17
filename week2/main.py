@@ -21,8 +21,6 @@ tokenizer_name = "basic_english"
 vocab_cache_path = f"week2/vocab_{tokenizer_name}.pth"
 tokenizer = get_tokenizer(tokenizer_name)
 
-checkpoint_path = "week2/model.pt"
-
 hidden_size = 128
 learning_rate = 0.0001
 epochs = 100
@@ -67,6 +65,8 @@ if __name__ == "__main__":
         )
     else:
         raise ValueError("invalid model")
+
+    checkpoint_path = f"week2/model_{args.model}.pt"
 
     trainer = RNNTrainer(
         trainset=trainset,

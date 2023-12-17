@@ -23,6 +23,6 @@ class RNNTrainer(Trainer):
 
     def on_epoch_done(self, epoch: int, loss: float):
         super().on_epoch_done(epoch, loss)
-        with open("week2/loss.csv", "a") as f:
+        with open(f"week2/loss_{self.model.name}.csv", "a") as f:
             test_loss = self.test()
             f.write(f"{epoch},{test_loss}\n")
