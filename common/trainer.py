@@ -42,7 +42,7 @@ class Trainer:
         self.checkpoint = Checkpoint(self.model, checkpoint_path)
         self.prev_epoch, self.checkpoint_loaded = self.checkpoint.load()
 
-    def get_loss(self, x, y):
+    def get_loss(self, x: torch.Tensor, y: torch.Tensor):
         raise NotImplementedError()
 
     def train(self):
@@ -71,4 +71,4 @@ class Trainer:
 
                     tepoch.set_postfix(loss=f"{loss.item():.3f}")
 
-            self.checkpoint.save(epoch, loss.item())
+            self.checkpoint.save(epoch + 1, loss.item())

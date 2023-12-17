@@ -24,7 +24,7 @@ tokenizer = get_tokenizer(tokenizer_name)
 checkpoint_path = "week2/model.pt"
 
 hidden_size = 100
-learning_rate = 0.0001
+learning_rate = 0.001
 
 
 if __name__ == "__main__":
