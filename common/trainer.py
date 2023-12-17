@@ -15,9 +15,10 @@ class Trainer:
 
     def __init__(
         self,
-        dataset: Dataset,
+        trainset: Dataset,
         model: callable,
-        train_dataset_total=None,
+        testset=None,
+        trainset_total=None,
         checkpoint_path="model.pt",
         device=torch.device("cpu"),
         criterion=None,
@@ -30,7 +31,8 @@ class Trainer:
         if optimizer is None:
             raise ValueError("optimizer must be specified")
 
-        self.dataset = dataset
+        self.trainset = trainset
+        self.testset = testset
         self.model = model
         self.shuffle = True
         self.device = device
@@ -38,7 +40,7 @@ class Trainer:
         self.optimizer = optimizer
         self.batch_size = batch_size
         self.epoch = epoch
-        self.train_dataset_total = train_dataset_total or len(dataset)
+        self.trainset_total = trainset_total or len(trainset)
         self.checkpoint = Checkpoint(self.model, checkpoint_path)
         self.prev_epoch, self.checkpoint_loaded = self.checkpoint.load()
 
@@ -47,7 +49,7 @@ class Trainer:
 
     def train(self):
         dataloader = DataLoader(
-            self.dataset,
+            self.trainset,
             batch_size=self.batch_size,
             collate_fn=self.collate_fn,
         )
@@ -58,7 +60,7 @@ class Trainer:
             with tqdm(
                 dataloader,
                 unit="batch",
-                total=math.ceil(self.train_dataset_total / self.batch_size),
+                total=math.ceil(self.trainset_total / self.batch_size),
             ) as tepoch:
                 for x, y in tepoch:
                     tepoch.set_description(f"Epoch {epoch+1}")
@@ -78,3 +80,32 @@ class Trainer:
                     tepoch.set_postfix(loss=f"{loss_total / i:.3f}")
 
             self.checkpoint.save(epoch + 1, loss_total / i)
+
+    def test(self):
+        dataloader = DataLoader(
+            self.testset,
+            batch_size=self.batch_size,
+            collate_fn=self.collate_fn,
+        )
+        loss_total = 0
+        i = 0
+
+        with tqdm(
+            dataloader,
+            unit="batch",
+            total=math.ceil(len(self.testset) / self.batch_size),
+        ) as tepoch:
+            for x, y in tepoch:
+                tepoch.set_description(f"Test")
+
+                x = x.to(self.device)
+                y = y.to(self.device)
+
+                loss = self.get_loss(x, y)
+
+                loss_total += loss.item()
+                i += 1
+
+                tepoch.set_postfix(loss=f"{loss_total / i:.3f}")
+
+        return loss_total / i

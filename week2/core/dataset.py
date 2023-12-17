@@ -10,8 +10,6 @@ logger = logging.getLogger(__name__)
 
 
 class AGNewsDataset(IterableDataset):
-    TOTAL_SENTENCES = 120_000
-    TOTAL_LABELS = 4
     LABELS = ["World", "Sports", "Business", "Sci/Tech"]
 
     def __init__(self, root: str, split: str):
@@ -23,7 +21,13 @@ class AGNewsDataset(IterableDataset):
         self.max_x_size = None
 
     def __len__(self):
-        return self.TOTAL_SENTENCES
+        if self.split == "train":
+            return 120_000
+        elif self.split == "test":
+            return 7_600
+        else:
+            raise KeyError(f"wrong split: {self.split}")
+        
 
     def __iter__(self):
         if self.vocab is None or self.max_x_size is None:
@@ -35,7 +39,7 @@ class AGNewsDataset(IterableDataset):
             yield x, y
 
     def _label_encode(self, label: int) -> torch.Tensor:
-        one_hot = torch.zeros(self.TOTAL_LABELS, dtype=torch.float)
+        one_hot = torch.zeros(len(self.LABELS), dtype=torch.float)
         one_hot[label - 1] = 1
         return one_hot
 

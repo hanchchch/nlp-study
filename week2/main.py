@@ -23,13 +23,13 @@ tokenizer = get_tokenizer(tokenizer_name)
 
 checkpoint_path = "week2/model.pt"
 
-hidden_size = 100
+hidden_size = 128
 learning_rate = 0.001
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("mode", choices=["train", "infer"])
+    parser.add_argument("mode", choices=["train", "infer", "test"])
     parser.add_argument("-s", "--sentence", type=str, default="")
     parser.add_argument("-g", "--gpu", type=bool, default=torch.cuda.is_available())
     args = parser.parse_args()
@@ -40,32 +40,46 @@ if __name__ == "__main__":
 
     device = torch.device("cuda" if args.gpu else "cpu")
     logger.info(f"device: {device}")
-    dataset = AGNewsDataset(root=".data", split="train")
+    trainset = AGNewsDataset(root=".data", split="train")
+    testset = AGNewsDataset(root=".data", split="test")
     vocab = Vocab(
-        dataset.sentences(),
+        trainset.sentences(),
         tokenizer=tokenizer,
         vocab_cache_path=vocab_cache_path,
     )
-    dataset.set_vocab(vocab)
+    trainset.set_vocab(vocab)
+    testset.set_vocab(vocab)
     logger.info(f"dataset loaded, {vocab.vocab_count()} vocabs")
 
     model = RNN(
         input_size=vocab.vocab_count(),
         hidden_size=hidden_size,
-        output_size=dataset.TOTAL_LABELS,
+        output_size=len(trainset.LABELS),
+    )
+
+    trainer = RNNTrainer(
+        trainset=trainset,
+        testset=testset,
+        model=model,
+        criterion=torch.nn.CrossEntropyLoss(),
+        optimizer=torch.optim.AdamW(model.parameters(), lr=learning_rate),
+        checkpoint_path=checkpoint_path,
+        batch_size=128,
     )
 
     if args.mode == "train":
-        trainer = RNNTrainer(
-            dataset=dataset,
-            model=model,
-            criterion=torch.nn.CrossEntropyLoss(),
-            optimizer=torch.optim.AdamW(model.parameters(), lr=learning_rate),
-            checkpoint_path=checkpoint_path,
-        )
         if trainer.checkpoint_loaded:
             logger.info(f"checkpoint loaded, epoch: {trainer.prev_epoch}")
+        
         trainer.train()
+
+    elif args.mode == "test":
+        if not trainer.checkpoint_loaded:
+            logger.error("no checkpoint loaded")
+            exit(1)
+
+        loss = trainer.test()
+        logger.info(f"loss: {loss}")
 
     elif args.mode == "infer":
         if not args.sentence:
@@ -83,7 +97,7 @@ if __name__ == "__main__":
             exit(1)
 
         index = inference.infer(args.sentence)
-        logger.info(f"{index+1}: {dataset.LABELS[index]}")
+        logger.info(f"{index+1}: {trainset.LABELS[index]}")
 
     else:
         raise ValueError("invalid mode")
