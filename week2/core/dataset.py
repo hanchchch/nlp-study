@@ -31,10 +31,6 @@ class AGNewsDataset(IterableDataset):
 
         for label, sentence in self.rows():
             x = torch.tensor(self.vocab(sentence), dtype=torch.long)
-            if len(x) < self.max_x_size:
-                x = torch.cat(
-                    [x, torch.zeros(self.max_x_size - len(x), dtype=torch.long)]
-                )
             y = self._label_encode(label)
             yield x, y
 

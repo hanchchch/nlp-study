@@ -32,4 +32,4 @@ class Inference:
                     self.device
                 )  # batch size 1
             )
-            return torch.argmax(output, dim=1)[0]
+            return torch.argmax(output)

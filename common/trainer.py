@@ -11,6 +11,8 @@ logger = logging.getLogger(__name__)
 
 
 class Trainer:
+    collate_fn = None
+
     def __init__(
         self,
         dataset: Dataset,
@@ -44,7 +46,11 @@ class Trainer:
         raise NotImplementedError()
 
     def train(self):
-        dataloader = DataLoader(self.dataset, batch_size=self.batch_size)
+        dataloader = DataLoader(
+            self.dataset,
+            batch_size=self.batch_size,
+            collate_fn=self.collate_fn,
+        )
         for epoch in range(self.epoch):
             with tqdm(
                 dataloader,
