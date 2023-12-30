@@ -34,7 +34,15 @@ class WMTEnDeDataset(IterableDataset):
             if not en or not de:
                 eof = True
                 continue
-            yield (en, de)
+            yield (self.vocab_en(en), self.vocab_de(de))
+
+    def __len__(self):
+        if self.split == "train":
+            return sum(1 for _ in open(self.get_filename("train", "en"), "rbU"))
+        elif self.split == "test":
+            return sum(1 for test in WMTEnDeDataset.TEST_FILENAMES for _ in open(self.get_filename(test, "en"), "rbU"))
+        else:
+            raise ValueError(f"unknown split: {self.split}")
 
     def __iter__(self):
         if self.split == "train":
