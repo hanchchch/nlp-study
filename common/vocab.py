@@ -11,11 +11,13 @@ class Vocab:
     def __init__(
         self,
         sentences: list[str],
-        tokenizer: callable,
+        tokenizer: callable = lambda x: x.split(),
         vocab_cache_path: str = None,
+        min_freq: int = 50,
     ):
         self.tokenizer = tokenizer
         self.vocab_cache_path = vocab_cache_path
+        self.min_freq = min_freq
 
         self.vocab = self._load_cache()
         if self.vocab is None:
@@ -38,7 +40,7 @@ class Vocab:
         vocab = build_vocab_from_iterator(
             self.yield_tokens(sentences),
             specials=["<unk>"],
-            min_freq=50,
+            min_freq=self.min_freq,
         )
         vocab.set_default_index(vocab["<unk>"])
         return vocab
