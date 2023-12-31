@@ -9,6 +9,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from week3.core.dataset import WMTEnDeDataset
 from week3.core.model import Transformer
+from week3.inference import Inference
 from week3.trainer import TransformerTrainer
 
 logging.basicConfig(level=logging.INFO)
@@ -22,6 +23,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("mode", choices=["train", "infer", "test"])
     parser.add_argument("-g", "--gpu", type=bool, default=torch.cuda.is_available())
+    parser.add_argument("-s", "--sentence", type=str, default="")
     args = parser.parse_args()
 
     if args.gpu and not torch.cuda.is_available():
@@ -55,3 +57,31 @@ if __name__ == "__main__":
             logger.info(f"checkpoint loaded, epoch: {trainer.prev_epoch}")
 
         trainer.train()
+
+    elif args.mode == "test":
+        if not trainer.checkpoint_loaded:
+            logger.error("no checkpoint loaded")
+            exit(1)
+
+        loss = trainer.test()
+        logger.info(f"loss: {loss}")
+
+    elif args.mode == "infer":
+        if not args.sentence:
+            print("usage: python main.py infer <sentence>")
+            exit(1)
+
+        inference = Inference(
+            model,
+            trainset,
+            checkpoint_path=checkpoint_path,
+        )
+        if not inference.checkpoint_loaded:
+            logger.error("no checkpoint loaded")
+            exit(1)
+
+        sentence = inference.infer(args.sentence)
+        logger.info(f"{sentence}")
+
+    else:
+        raise ValueError("invalid mode")
