@@ -2,8 +2,9 @@ import torch
 
 
 class PositionalEncoding(torch.nn.Module):
-    def __init__(self, position: torch.Tensor, d_model: int):
+    def __init__(self, position: torch.Tensor, d_model: int, dropout: float = 0.1):
         super().__init__()
+        self.dropout = torch.nn.Dropout(dropout)
         self.pos_encoding = self.positional_encoding(position, d_model)
 
     def get_angles(self, position: torch.Tensor, i: torch.Tensor, d_model: int):
@@ -29,7 +30,7 @@ class PositionalEncoding(torch.nn.Module):
         return pos_encoding
 
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
-        return inputs + self.pos_encoding[:, :inputs.shape[1], :]
+        return self.dropout(inputs + self.pos_encoding[:, :inputs.shape[1], :])
 
 
 class MultiHeadAttention(torch.nn.Module):
@@ -206,10 +207,8 @@ class Transformer(torch.nn.Module):
         self.d_ff = d_ff
         self.pad_token_id = pad_token_id
 
-        self.dropout = torch.nn.Dropout(dropout)
-
         self.embedding = torch.nn.Embedding(vocab_size, d_model)
-        self.pos_encoding = PositionalEncoding(vocab_size, d_model)
+        self.pos_encoding = PositionalEncoding(vocab_size, d_model, dropout)
 
         self.enc_layers = torch.nn.ModuleList(
             [
@@ -223,7 +222,7 @@ class Transformer(torch.nn.Module):
                 for _ in range(num_layers)
             ]
         )
-        self.dense = torch.nn.Linear(d_model, d_model)
+        self.dense = torch.nn.Linear(d_model, vocab_size)
 
 
     def create_padding_mask(self, x: torch.Tensor):
@@ -235,35 +234,32 @@ class Transformer(torch.nn.Module):
         padding_mask = self.create_padding_mask(x)
         return torch.max(look_ahead_mask, padding_mask)
     
-    def pos_encode_dropout(self, x: torch.Tensor):
-        embeddings = self.embedding(x)
-        embeddings *= torch.math.sqrt(self.d_model)
-        embeddings = self.pos_encoding(embeddings)
-        return self.dropout(embeddings)
+    def pos_encode(self, x: torch.Tensor):
+        embeddings = self.embedding(x) * torch.math.sqrt(self.d_model)
+        return self.pos_encoding(embeddings)
 
-    def encoder(self, x: torch.Tensor) -> torch.Tensor:
-        mask = self.create_padding_mask(x)
-
-        outputs = self.pos_encode_dropout(x)
+    def encoder(self, x: torch.Tensor, padding_mask: torch.Tensor) -> torch.Tensor:
+        outputs = self.pos_encode(x)
 
         for i in range(self.num_layers):
-            outputs = self.enc_layers[i](outputs, mask)
+            outputs = self.enc_layers[i](outputs, padding_mask)
 
         return outputs
 
-    def decoder(self, x: torch.Tensor, enc_outputs: torch.Tensor) -> torch.Tensor:
+    def decoder(self, x: torch.Tensor, enc_outputs: torch.Tensor, padding_mask: torch.Tensor) -> torch.Tensor:
         look_ahead_mask = self.create_look_ahead_mask(x)
-        padding_mask = self.create_padding_mask(x)
 
-        outputs = self.pos_encode_dropout(x)
+        outputs = self.pos_encode(x)
 
         for i in range(self.num_layers):
             outputs = self.dec_layers[i](outputs, enc_outputs, look_ahead_mask, padding_mask)
 
         return outputs
     
-    def forward(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
-        enc_outputs = self.encoder(x)
-        dec_outputs = self.decoder(y, enc_outputs)
+    def forward(self, enc_x: torch.Tensor, dec_x: torch.Tensor) -> torch.Tensor:
+        enc_padding_mask = self.create_padding_mask(enc_x)
+        enc_outputs = self.encoder(enc_x, enc_padding_mask)
+        dec_padding_mask = self.create_padding_mask(dec_x)
+        dec_outputs = self.decoder(dec_x, enc_outputs, dec_padding_mask)
         outputs = self.dense(dec_outputs)
         return outputs
