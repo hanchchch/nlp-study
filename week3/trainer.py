@@ -29,6 +29,7 @@ class TransformerTrainer(Trainer):
     def get_loss(self, x: torch.Tensor, y: torch.Tensor):
         x, y = self.make_x_y_even_seq_len(x, y)
         output = self.model(x, y)
+        output = output.transpose(1, 2)
         return self.criterion(output, y)
 
     def collate_fn(self, batch):
