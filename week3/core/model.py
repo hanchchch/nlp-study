@@ -29,7 +29,7 @@ class PositionalEncoding(torch.nn.Module):
         return pos_encoding
 
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
-        return inputs + self.pos_encoding[:, :torch.shape(inputs)[1], :]
+        return inputs + self.pos_encoding[:, :inputs.shape[1], :]
 
 
 class MultiHeadAttention(torch.nn.Module):
@@ -59,7 +59,7 @@ class MultiHeadAttention(torch.nn.Module):
         inputs = torch.reshape(
             inputs, shape=(batch_size, -1, self.num_heads, self.depth)
         )
-        return torch.transpose(inputs, perm=self.perm)
+        return inputs.permute(*self.perm)
 
     def scaled_dot_product_attention(
         self,
@@ -71,7 +71,7 @@ class MultiHeadAttention(torch.nn.Module):
         """
         softmax((q * k.T) / sqrt(d_k)) * v
         """
-        qk = torch.matmul(q, k, transpose_b=True)
+        qk = torch.matmul(q, k.transpose(-1, -2))
         scaled_qk = qk / torch.math.sqrt(self.depth)
 
         if mask is not None:
@@ -83,7 +83,7 @@ class MultiHeadAttention(torch.nn.Module):
         return attention_value
 
     def forward(self, v: torch.Tensor, k: torch.Tensor, q: torch.Tensor, mask: torch.Tensor):
-        batch_size = torch.shape(q)[0]
+        batch_size = q.shape[0]
 
         q = self.wq(q)
         k = self.wk(k)
@@ -96,7 +96,7 @@ class MultiHeadAttention(torch.nn.Module):
         attention_value = self.scaled_dot_product_attention(
             q, k, v, mask
         )
-        attention_value = torch.transpose(attention_value, perm=self.perm)
+        attention_value = attention_value.permute(*self.perm)
 
         concat_attention = torch.reshape(
             attention_value, (batch_size, -1, self.d_model)

@@ -1,5 +1,6 @@
 import os.path as osp
 
+import torch
 from torch.utils.data import IterableDataset
 
 from common.vocab import Vocab
@@ -34,7 +35,7 @@ class WMTEnDeDataset(IterableDataset):
             if not en or not de:
                 eof = True
                 continue
-            yield (self.vocab_en(en), self.vocab_de(de))
+            yield (torch.tensor(self.vocab_en(en), dtype=torch.long), torch.tensor(self.vocab_de(de), dtype=torch.long))
 
     def __len__(self):
         if self.split == "train":

@@ -18,5 +18,5 @@ class TransformerTrainer(Trainer):
     def collate_fn(self, batch):
         x, y = zip(*batch)
         x = pad_sequence(x, batch_first=True)
-        y = torch.stack(y)
+        y = pad_sequence(y, batch_first=True)
         return x, y
