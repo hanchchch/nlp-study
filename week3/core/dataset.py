@@ -10,7 +10,9 @@ class WMTEnDeDataset(IterableDataset):
     DIRNAME = "wmt14"
     VOCAB_FILENAME = "vocab.50K"
     VOCAB_CACHENAME = "vocab.pt"
-    TEST_FILENAMES = ["newstest2012", "newstest2013", "newstest2014", "newstest2015"]
+    TEST_FILENAMES = ["nestest2012", "nestest2013", "nestest2014", "nestest2015"]
+    START_TOKEN = "<s>"
+    END_TOKEN = "</s>"
 
     def __init__(self, root: str, split: str = "train"):
         self.root = root
@@ -31,6 +33,9 @@ class WMTEnDeDataset(IterableDataset):
                 ),
                 min_freq=1,
             )
+        
+    def wrap(self, sentence: str):
+        return f"{self.START_TOKEN} {sentence} {self.END_TOKEN}"
 
     def iter(self, f_en, f_de):
         eof = False
@@ -41,8 +46,8 @@ class WMTEnDeDataset(IterableDataset):
                 eof = True
                 continue
             yield (
-                torch.tensor(self.vocab_en(en), dtype=torch.long),
-                torch.tensor(self.vocab_de(de), dtype=torch.long),
+                torch.tensor(self.vocab_en(self.wrap(en)), dtype=torch.long),
+                torch.tensor(self.vocab_de(self.wrap(de)), dtype=torch.long),
             )
 
     def __len__(self):
