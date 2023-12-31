@@ -147,6 +147,43 @@ class EncoderLayer(torch.nn.Module):
         output = self.layer_norm2(attention_output + ffn_output)
 
         return output
+    
+
+class DecoderLayer(torch.nn.Module):
+    def __init__(self, d_model: int, num_heads: int, d_ff: int, dropout: float = 0.1):
+        super().__init__()
+        self.mha1 = MultiHeadAttention(d_model, num_heads)
+        self.mha2 = MultiHeadAttention(d_model, num_heads)
+        self.ffn = PositionWiseFFNN(d_model, d_ff)
+
+        self.layer_norm1 = torch.nn.LayerNorm(d_model)
+        self.layer_norm2 = torch.nn.LayerNorm(d_model)
+        self.layer_norm3 = torch.nn.LayerNorm(d_model)
+
+        self.dropout1 = torch.nn.Dropout(dropout)
+        self.dropout2 = torch.nn.Dropout(dropout)
+        self.dropout3 = torch.nn.Dropout(dropout)
+
+    def forward(
+        self,
+        inputs: torch.Tensor,
+        encoder_outputs: torch.Tensor,
+        look_ahead_mask: torch.Tensor,
+        padding_mask: torch.Tensor,
+    ) -> torch.Tensor:
+        attention_1 = self.mha1(inputs, inputs, inputs, look_ahead_mask)
+        attention_1 = self.dropout1(attention_1)
+        attention_1 = self.layer_norm1(inputs + attention_1)
+
+        attention_2 = self.mha2(attention_1, encoder_outputs, encoder_outputs, padding_mask)
+        attention_2 = self.dropout2(attention_2)
+        attention_2 = self.layer_norm2(attention_1 + attention_2)
+
+        ffn_output = self.ffn(attention_2)
+        ffn_output = self.dropout3(ffn_output)
+        output = self.layer_norm3(attention_2 + ffn_output)
+
+        return output
 
 class Transformer(torch.nn.Module):
     name = "transformer"
@@ -159,6 +196,7 @@ class Transformer(torch.nn.Module):
         d_ff: int = 2048,
         vocab_size: int = 50 * 1000,
         dropout: float = 0.1,
+        pad_token_id: int = 0,
     ):
         super().__init__()
 
@@ -166,6 +204,7 @@ class Transformer(torch.nn.Module):
         self.num_layers = num_layers
         self.num_heads = num_heads
         self.d_ff = d_ff
+        self.pad_token_id = pad_token_id
 
         self.dropout = torch.nn.Dropout(dropout)
 
@@ -178,18 +217,53 @@ class Transformer(torch.nn.Module):
                 for _ in range(num_layers)
             ]
         )
+        self.dec_layers = torch.nn.ModuleList(
+            [
+                DecoderLayer(d_model, num_heads, d_ff, dropout)
+                for _ in range(num_layers)
+            ]
+        )
+        self.dense = torch.nn.Linear(d_model, d_model)
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        mask = None
 
+    def create_padding_mask(self, x: torch.Tensor):
+        return ~(x == self.pad_token_id)[:,None,None,:]
+    
+    def create_look_ahead_mask(self, x: torch.Tensor):
+        seq_len = x.shape[1]
+        look_ahead_mask = torch.tril(torch.ones((seq_len, seq_len)))
+        padding_mask = self.create_padding_mask(x)
+        return torch.max(look_ahead_mask, padding_mask)
+    
+    def pos_encode_dropout(self, x: torch.Tensor):
         embeddings = self.embedding(x)
         embeddings *= torch.math.sqrt(self.d_model)
         embeddings = self.pos_encoding(embeddings)
-        outputs = self.dropout(embeddings)
+        return self.dropout(embeddings)
+
+    def encoder(self, x: torch.Tensor) -> torch.Tensor:
+        mask = self.create_padding_mask(x)
+
+        outputs = self.pos_encode_dropout(x)
 
         for i in range(self.num_layers):
             outputs = self.enc_layers[i](outputs, mask)
 
-        # TODO decoders
+        return outputs
 
+    def decoder(self, x: torch.Tensor, enc_outputs: torch.Tensor) -> torch.Tensor:
+        look_ahead_mask = self.create_look_ahead_mask(x)
+        padding_mask = self.create_padding_mask(x)
+
+        outputs = self.pos_encode_dropout(x)
+
+        for i in range(self.num_layers):
+            outputs = self.dec_layers[i](outputs, enc_outputs, look_ahead_mask, padding_mask)
+
+        return outputs
+    
+    def forward(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+        enc_outputs = self.encoder(x)
+        dec_outputs = self.decoder(y, enc_outputs)
+        outputs = self.dense(dec_outputs)
         return outputs
