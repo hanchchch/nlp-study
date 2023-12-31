@@ -12,7 +12,6 @@ class WMTEnDeDataset(IterableDataset):
     VOCAB_CACHENAME = "vocab.pt"
     TEST_FILENAMES = ["newstest2012", "newstest2013", "newstest2014", "newstest2015"]
 
-
     def __init__(self, root: str, split: str = "train"):
         self.root = root
         self.split = split
@@ -25,8 +24,14 @@ class WMTEnDeDataset(IterableDataset):
     def get_vocab(self, lang: str) -> Vocab:
         with open(self.get_filename(WMTEnDeDataset.VOCAB_FILENAME, lang)) as f:
             v = f.readlines()
-            return Vocab(v, vocab_cache_path=self.get_filename(WMTEnDeDataset.VOCAB_CACHENAME, lang), min_freq=1)
-    
+            return Vocab(
+                v,
+                vocab_cache_path=self.get_filename(
+                    WMTEnDeDataset.VOCAB_CACHENAME, lang
+                ),
+                min_freq=1,
+            )
+
     def iter(self, f_en, f_de):
         eof = False
         while not eof:
@@ -35,13 +40,20 @@ class WMTEnDeDataset(IterableDataset):
             if not en or not de:
                 eof = True
                 continue
-            yield (torch.tensor(self.vocab_en(en), dtype=torch.long), torch.tensor(self.vocab_de(de), dtype=torch.long))
+            yield (
+                torch.tensor(self.vocab_en(en), dtype=torch.long),
+                torch.tensor(self.vocab_de(de), dtype=torch.long),
+            )
 
     def __len__(self):
         if self.split == "train":
             return sum(1 for _ in open(self.get_filename("train", "en"), "rbU"))
         elif self.split == "test":
-            return sum(1 for test in WMTEnDeDataset.TEST_FILENAMES for _ in open(self.get_filename(test, "en"), "rbU"))
+            return sum(
+                1
+                for test in WMTEnDeDataset.TEST_FILENAMES
+                for _ in open(self.get_filename(test, "en"), "rbU")
+            )
         else:
             raise ValueError(f"unknown split: {self.split}")
 
@@ -57,4 +69,3 @@ class WMTEnDeDataset(IterableDataset):
                 yield from self.iter(f_en, f_de)
         else:
             raise ValueError(f"unknown split: {self.split}")
-    

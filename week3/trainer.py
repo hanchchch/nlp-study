@@ -17,9 +17,13 @@ class TransformerTrainer(Trainer):
         x_len = x.shape[1]
         y_len = y.shape[1]
         if x_len > y_len:
-            y = torch.cat([y, torch.zeros((y.shape[0], x_len - y_len), dtype=torch.long)], dim=1)
+            y = torch.cat(
+                [y, torch.zeros((y.shape[0], x_len - y_len), dtype=torch.long)], dim=1
+            )
         elif x_len < y_len:
-            x = torch.cat([x, torch.zeros((x.shape[0], y_len - x_len), dtype=torch.long)], dim=1)
+            x = torch.cat(
+                [x, torch.zeros((x.shape[0], y_len - x_len), dtype=torch.long)], dim=1
+            )
         return x, y
 
     def get_loss(self, x: torch.Tensor, y: torch.Tensor):

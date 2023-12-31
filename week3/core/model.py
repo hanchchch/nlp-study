@@ -30,7 +30,7 @@ class PositionalEncoding(torch.nn.Module):
         return pos_encoding
 
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
-        return self.dropout(inputs + self.pos_encoding[:, :inputs.shape[1], :])
+        return self.dropout(inputs + self.pos_encoding[:, : inputs.shape[1], :])
 
 
 class MultiHeadAttention(torch.nn.Module):
@@ -38,9 +38,7 @@ class MultiHeadAttention(torch.nn.Module):
         super().__init__()
 
         if d_model % num_heads != 0:
-            raise ValueError(
-                f"d_model({d_model}) % num_heads({num_heads}) is not zero"
-            )
+            raise ValueError(f"d_model({d_model}) % num_heads({num_heads}) is not zero")
 
         self.perm = [0, 2, 1, 3]
         self.num_heads = num_heads
@@ -83,7 +81,9 @@ class MultiHeadAttention(torch.nn.Module):
 
         return attention_value
 
-    def forward(self, v: torch.Tensor, k: torch.Tensor, q: torch.Tensor, mask: torch.Tensor):
+    def forward(
+        self, v: torch.Tensor, k: torch.Tensor, q: torch.Tensor, mask: torch.Tensor
+    ):
         batch_size = q.shape[0]
 
         q = self.wq(q)
@@ -94,9 +94,7 @@ class MultiHeadAttention(torch.nn.Module):
         k = self.split_heads(k, batch_size)
         v = self.split_heads(v, batch_size)
 
-        attention_value = self.scaled_dot_product_attention(
-            q, k, v, mask
-        )
+        attention_value = self.scaled_dot_product_attention(q, k, v, mask)
         attention_value = attention_value.permute(*self.perm)
 
         concat_attention = torch.reshape(
@@ -148,7 +146,7 @@ class EncoderLayer(torch.nn.Module):
         output = self.layer_norm2(attention_output + ffn_output)
 
         return output
-    
+
 
 class DecoderLayer(torch.nn.Module):
     def __init__(self, d_model: int, num_heads: int, d_ff: int, dropout: float = 0.1):
@@ -176,7 +174,9 @@ class DecoderLayer(torch.nn.Module):
         attention_1 = self.dropout1(attention_1)
         attention_1 = self.layer_norm1(inputs + attention_1)
 
-        attention_2 = self.mha2(attention_1, encoder_outputs, encoder_outputs, padding_mask)
+        attention_2 = self.mha2(
+            attention_1, encoder_outputs, encoder_outputs, padding_mask
+        )
         attention_2 = self.dropout2(attention_2)
         attention_2 = self.layer_norm2(attention_1 + attention_2)
 
@@ -185,6 +185,7 @@ class DecoderLayer(torch.nn.Module):
         output = self.layer_norm3(attention_2 + ffn_output)
 
         return output
+
 
 class Transformer(torch.nn.Module):
     name = "transformer"
@@ -211,29 +212,22 @@ class Transformer(torch.nn.Module):
         self.pos_encoding = PositionalEncoding(vocab_size, d_model, dropout)
 
         self.enc_layers = torch.nn.ModuleList(
-            [
-                EncoderLayer(d_model, num_heads, d_ff, dropout)
-                for _ in range(num_layers)
-            ]
+            [EncoderLayer(d_model, num_heads, d_ff, dropout) for _ in range(num_layers)]
         )
         self.dec_layers = torch.nn.ModuleList(
-            [
-                DecoderLayer(d_model, num_heads, d_ff, dropout)
-                for _ in range(num_layers)
-            ]
+            [DecoderLayer(d_model, num_heads, d_ff, dropout) for _ in range(num_layers)]
         )
         self.dense = torch.nn.Linear(d_model, vocab_size)
 
-
     def create_padding_mask(self, x: torch.Tensor):
-        return ~(x == self.pad_token_id)[:,None,None,:]
-    
+        return ~(x == self.pad_token_id)[:, None, None, :]
+
     def create_look_ahead_mask(self, x: torch.Tensor):
         seq_len = x.shape[1]
         look_ahead_mask = torch.tril(torch.ones((seq_len, seq_len)))
         padding_mask = self.create_padding_mask(x)
         return torch.max(look_ahead_mask, padding_mask)
-    
+
     def pos_encode(self, x: torch.Tensor):
         embeddings = self.embedding(x) * torch.math.sqrt(self.d_model)
         return self.pos_encoding(embeddings)
@@ -246,16 +240,20 @@ class Transformer(torch.nn.Module):
 
         return outputs
 
-    def decoder(self, x: torch.Tensor, enc_outputs: torch.Tensor, padding_mask: torch.Tensor) -> torch.Tensor:
+    def decoder(
+        self, x: torch.Tensor, enc_outputs: torch.Tensor, padding_mask: torch.Tensor
+    ) -> torch.Tensor:
         look_ahead_mask = self.create_look_ahead_mask(x)
 
         outputs = self.pos_encode(x)
 
         for i in range(self.num_layers):
-            outputs = self.dec_layers[i](outputs, enc_outputs, look_ahead_mask, padding_mask)
+            outputs = self.dec_layers[i](
+                outputs, enc_outputs, look_ahead_mask, padding_mask
+            )
 
         return outputs
-    
+
     def forward(self, enc_x: torch.Tensor, dec_x: torch.Tensor) -> torch.Tensor:
         enc_padding_mask = self.create_padding_mask(enc_x)
         enc_outputs = self.encoder(enc_x, enc_padding_mask)
