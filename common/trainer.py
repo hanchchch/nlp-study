@@ -46,7 +46,7 @@ class Trainer:
         raise NotImplementedError()
 
     def on_epoch_done(self, epoch: int, loss: float):
-        self.checkpoint.save(epoch, loss)
+        self.checkpoint.save(epoch, loss, self.prev_epoch, self.optimizer)
 
     def train(self):
         dataloader = DataLoader(
@@ -54,30 +54,47 @@ class Trainer:
             batch_size=self.batch_size,
             collate_fn=self.collate_fn,
         )
-        for epoch in range(self.prev_epoch, self.epoch):
-            loss_total = 0
-            i = 0
+        loss_total = 0
+        i = 0
+        skipped = False
+        try:
+            for epoch in range(self.prev_epoch, self.epoch):
+                loss_total = 0
+                i = 0
 
-            with tqdm(
-                dataloader,
-                unit="batch",
-                total=math.ceil(self.trainset_total / self.batch_size),
-            ) as tepoch:
-                for x, y in tepoch:
-                    tepoch.set_description(f"Epoch {epoch+1}")
+                with tqdm(
+                    dataloader,
+                    unit="batch",
+                    total=math.ceil(self.trainset_total / self.batch_size),
+                ) as tepoch:
+                    for x, y in tepoch:
+                        if not skipped and self.checkpoint.data_index is not None:
+                            if i < self.checkpoint.data_index:
+                                i += 1
+                                continue
+                            else:
+                                loss_total = self.checkpoint.loss * i
+                                skipped = True
 
-                    self.optimizer.zero_grad()
-                    loss = self.get_loss(x, y)
+                        tepoch.set_description(f"Epoch {epoch+1}")
 
-                    loss.backward()
-                    self.optimizer.step()
+                        self.optimizer.zero_grad()
+                        loss = self.get_loss(x, y)
 
-                    loss_total += loss.item()
-                    i += 1
+                        loss.backward()
+                        self.optimizer.step()
 
-                    tepoch.set_postfix(loss=f"{loss_total / i:.3f}")
+                        loss_total += loss.item()
+                        i += 1
 
-            self.on_epoch_done(epoch + 1, loss_total / i)
+                        tepoch.set_postfix(loss=f"{loss_total / i:.3f}")
+
+                self.on_epoch_done(epoch + 1, loss_total / i)
+        except KeyboardInterrupt:
+            if i > 0 and loss_total > 0:
+                logger.info("interrupted, saving checkpoint")
+                self.checkpoint.save(epoch, loss_total / i, self.prev_epoch, self.optimizer, i)
+
 
     def test(self):
         dataloader = DataLoader(
